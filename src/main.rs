@@ -2,9 +2,9 @@ mod types;
 
 use std::str::FromStr;
 
+use types::frame::{default_event_loop, default_window, FrameBuilder};
 use winit::event::{Event, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoop};
-use winit::window::WindowBuilder;
+use winit::event_loop::ControlFlow;
 use crate::types::frame::Frame;
 use crate::types::color::Rgba;
 
@@ -29,18 +29,17 @@ fn draw(frame: &mut Frame) {
 }
 
 fn main() {
-    let event_loop = EventLoop::new();
-    let window = {
-        let size = winit::dpi::LogicalSize::new(WIDTH, HEIGHT);
-        WindowBuilder::new()
-            .with_title("Hello, World!")
-            .with_inner_size(size)
-            .with_min_inner_size(size)
-            .build(&event_loop)
-            .unwrap()
-    };
+    let event_loop = default_event_loop();
+    let window = default_window(WIDTH, HEIGHT, "Transflag", &event_loop);
 
-    let mut frame = Frame::new(WIDTH, HEIGHT, &window);
+    let surface = pixels::SurfaceTexture::new(window.inner_size().width, window.inner_size().width, &window);
+
+    let frame_builder = FrameBuilder::new(WIDTH, HEIGHT)
+        .with_surface(surface)
+        .with_event_loop(&event_loop);
+
+    let mut frame = frame_builder.build().unwrap();
+
     draw(&mut frame);
 
     event_loop.run(move |event, _, control_flow| {
