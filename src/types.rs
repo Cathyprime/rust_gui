@@ -86,15 +86,30 @@ pub mod color {
 }
 
 pub mod frame {
+    use super::color::Color;
     use super::color::Rgba;
     use pixels::Pixels;
     use winit::event_loop::EventLoop;
-    use super::color::Color;
+    use winit::window::WindowBuilder;
 
     pub struct Frame {
         width: u32,
         height: u32,
         pixels: Pixels,
+    }
+
+    pub fn default_window(width: u32, height: u32, title: &str, event_loop: &EventLoop<()>) -> winit::window::Window {
+        let size = winit::dpi::LogicalSize::new(width, height);
+        WindowBuilder::new()
+            .with_title(title)
+            .with_inner_size(size)
+            .with_min_inner_size(size)
+            .build(event_loop)
+            .unwrap()
+    }
+
+    pub fn default_event_loop() -> EventLoop<()> {
+        EventLoop::new()
     }
 
     impl Frame {
@@ -155,9 +170,9 @@ pub mod frame {
             let index = idx.0 + self.width as usize * idx.1;
             let c = self.pixels.frame().chunks_exact(4).nth(index - 1);
             c.map(|v| Rgba {
-                red:   v[0],
+                red: v[0],
                 green: v[1],
-                blue:  v[2],
+                blue: v[2],
                 alpha: v[3],
             })
         }
@@ -171,7 +186,7 @@ pub mod frame {
                     v[1] = color.green();
                     v[2] = color.blue();
                     v[3] = color.alpha();
-                },
+                }
                 None => panic!(),
             }
         }
