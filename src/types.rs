@@ -16,6 +16,45 @@ pub mod color {
         pub alpha: u8,
     }
 
+    impl Rgba {
+        pub fn new(red: u8, green: u8, blue: u8, alpha: u8) -> Self {
+            Rgba {
+                red,
+                green,
+                blue,
+                alpha,
+            }
+        }
+    }
+
+    pub struct Grayscale {
+        scale: u8,
+    }
+
+    impl Grayscale {
+        pub fn new(scale: u8) -> Self {
+            Grayscale { scale }
+        }
+    }
+
+    impl Color for Grayscale {
+        fn red(&self) -> u8 {
+            self.scale
+        }
+
+        fn green(&self) -> u8 {
+            self.scale
+        }
+
+        fn blue(&self) -> u8 {
+            self.scale
+        }
+
+        fn alpha(&self) -> u8 {
+            255
+        }
+    }
+
     #[derive(Debug, Error)]
     pub enum ColorErr {
         #[error("invalid format")]
@@ -40,7 +79,17 @@ pub mod color {
         fn alpha(&self) -> u8 {
             self.alpha
         }
+    }
 
+    impl std::convert::From<Rgba> for pixels::wgpu::Color {
+        fn from(val: Rgba) -> Self {
+            pixels::wgpu::Color {
+                r: val.red as f64,
+                g: val.green as f64,
+                b: val.blue as f64,
+                a: val.alpha as f64,
+            }
+        }
     }
 
     impl FromStr for Rgba {
@@ -86,6 +135,8 @@ pub mod color {
 }
 
 pub mod frame {
+    use std::str::FromStr;
+
     use super::color::Color;
     use super::color::Rgba;
     use pixels::Pixels;
@@ -98,7 +149,12 @@ pub mod frame {
         pixels: Pixels,
     }
 
-    pub fn default_window(width: u32, height: u32, title: &str, event_loop: &EventLoop<()>) -> winit::window::Window {
+    pub fn default_window(
+        width: u32,
+        height: u32,
+        title: &str,
+        event_loop: &EventLoop<()>,
+    ) -> winit::window::Window {
         let size = winit::dpi::LogicalSize::new(width, height);
         WindowBuilder::new()
             .with_title(title)
@@ -150,12 +206,12 @@ pub mod frame {
             Ok(())
         }
 
-        pub fn width(&self) -> &u32 {
-            &self.width
+        pub fn width(&self) -> u32 {
+            self.width
         }
 
-        pub fn height(&self) -> &u32 {
-            &self.height
+        pub fn height(&self) -> u32 {
+            self.height
         }
 
         pub fn pixels(&self) -> &Pixels {
@@ -177,7 +233,7 @@ pub mod frame {
             })
         }
 
-        pub fn set<T: Color>(&mut self, width: usize, height: usize, color: &T) {
+        pub fn set(&mut self, width: usize, height: usize, color: &impl Color) {
             let index = width + self.width as usize * height;
             let c = self.pixels.frame_mut().chunks_exact_mut(4).nth(index);
             match c {
@@ -187,7 +243,20 @@ pub mod frame {
                     v[2] = color.blue();
                     v[3] = color.alpha();
                 }
-                None => panic!(),
+                None => panic!("out of bounds"),
+            }
+        }
+
+        pub fn set_by_index(&mut self, index: usize, color: &impl Color) {
+            let c = self.pixels.frame_mut().chunks_exact_mut(4).nth(index);
+            match c {
+                Some(v) => {
+                    v[0] = color.red();
+                    v[1] = color.green();
+                    v[2] = color.blue();
+                    v[3] = color.alpha();
+                }
+                None => panic!("out of bounds"),
             }
         }
     }
@@ -198,6 +267,7 @@ pub mod frame {
         pixels: Option<pixels::Pixels>,
         surface: Option<pixels::SurfaceTexture<'a, winit::window::Window>>,
         event_loop: Option<&'a EventLoop<()>>,
+        background: Option<Rgba>,
     }
 
     #[derive(thiserror::Error, Debug)]
@@ -215,6 +285,7 @@ pub mod frame {
                 pixels: None,
                 surface: None,
                 event_loop: None,
+                background: None,
             }
         }
 
@@ -231,6 +302,16 @@ pub mod frame {
             self
         }
 
+        pub fn with_background(mut self, color: impl Color) -> Self {
+            self.background = Some(Rgba {
+                red: color.red(),
+                green: color.green(),
+                blue: color.blue(),
+                alpha: color.alpha(),
+            });
+            self
+        }
+
         pub fn build(self) -> Result<Frame, FrameBuilderErr> {
             let surface = self.surface.ok_or(FrameBuilderErr::MissingSurface)?;
 
@@ -240,12 +321,31 @@ pub mod frame {
                 pixels: match self.pixels {
                     Some(v) => v,
                     None => pixels::PixelsBuilder::new(self.width, self.height, surface)
-                        .clear_color(pixels::wgpu::Color::BLACK)
+                        .clear_color(
+                            self.background
+                                .unwrap_or_else(|| Rgba::from_str("#000").unwrap())
+                                .into(),
+                        )
                         .wgpu_backend(pixels::wgpu::Backends::GL)
                         .build()
                         .unwrap(),
                 },
             })
         }
+    }
+}
+
+pub mod utils {
+    use std::ops::{Add, Div, Mul, Sub};
+
+    pub fn remap_value<T>(value: T, from: (T, T), to: (T, T)) -> T
+    where
+        T: Add<Output = T>
+            + Sub<Output = T>
+            + Mul<Output = T>
+            + Div<Output = T>
+            + Copy
+    {
+        to.0 + (value - from.0) * (to.1 - to.0) / (from.1 - from.0)
     }
 }
