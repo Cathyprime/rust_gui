@@ -51,12 +51,12 @@ fn draw(frame: &mut Frame) {
             }
 
             if n == max_iterations {
-                frame.set_by_index((i + j * frame.width()) as usize, &Grayscale::new(0));
+                frame.set_by_index((i + j * frame.width()) as usize, Grayscale::new(0));
             } else {
                 let norm = types::utils::remap_value(converge_number as f64, (0.0, max_iterations as f64), (0.0, 1.0));
                 frame.set_by_index(
                     (i + j * frame.width()) as usize,
-                    &Grayscale::new(types::utils::remap_value(
+                    Grayscale::new(types::utils::remap_value(
                         norm.sqrt(),
                         (0.0, 1.0),
                         (0.0, 255.0),

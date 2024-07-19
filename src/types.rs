@@ -247,7 +247,7 @@ pub mod frame {
             }
         }
 
-        pub fn set_by_index(&mut self, index: usize, color: &impl Color) {
+        pub fn set_by_index(&mut self, index: usize, color: impl Color) {
             let c = self.pixels.frame_mut().chunks_exact_mut(4).nth(index);
             match c {
                 Some(v) => {
